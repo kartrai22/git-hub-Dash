@@ -1,0 +1,14 @@
+name: Project Automation
+
+on:
+  issues:
+    types: [opened, closed]
+  pull_request:
+    types: [opened, closed]
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log event
+        run: echo "Automation trigger"

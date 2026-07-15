@@ -1,0 +1,9 @@
+name: Subtask
+title: "[SUBTASK] "
+labels: ["Subtask"]
+body:
+  - type: textarea
+    attributes:
+      label: Task Details
+    validations:
+      required: true

@@ -1,0 +1,9 @@
+name: Task
+title: "[TASK] "
+labels: ["Task"]
+body:
+  - type: textarea
+    attributes:
+      label: Task Description
+    validations:
+      required: true

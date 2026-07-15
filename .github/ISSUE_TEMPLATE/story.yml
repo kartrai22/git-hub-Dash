@@ -1,0 +1,16 @@
+name: Story
+title: "[STORY] "
+labels: ["Story"]
+body:
+  - type: textarea
+    attributes:
+      label: User Story
+      description: "As a user, I want..."
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Acceptance Criteria
+    validations:
+      required: true
