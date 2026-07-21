@@ -23,10 +23,13 @@ jobs:
       - name: Validate status transition
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.PROJECT_TOKEN }}
+          github-token: ${{ secrets.PROJECT_TOKEN }}  
           script: |
             const issue = context.payload.issue;
-
+             if (!issue || !issue.number) {
+              console.log("No issue context. Skipping execution.");
+            return;
+            }
             // Configure these values
             const PROJECT_ID = "PVT_kwHOBxoExc4BeAXg";
             const STATUS_FIELD_ID = "PVTSSF_lAHOBxoExc4BeAXgzhYdvfk";
