@@ -1,6 +1,7 @@
 name: Enforce Status Transition
 
 on:
+  workflow_dispatch:
   issues:
     types: [opened, edited]
   schedule:
