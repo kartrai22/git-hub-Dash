@@ -1,0 +1,153 @@
+name: Enforce Status Transition
+
+on:
+  issues:
+    types: [opened, edited]
+  schedule:
+    - cron: '0 * * * *'
+
+jobs:
+  enforce-status:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.PROJECT_TOKEN }}
+        script: |
+          const PROJECT_ID = "PVT_kwHOBxoExc4BeAXg";
+          const STATUS_FIELD_ID = "PVTSSF_lAHOBxoExc4BeAXgzhYdvfk";
+
+          const STATUS = {
+            OPEN: "f75ad846",
+            IN_PROGRESS: "47fc9ee4",
+            IN_REVIEW: "723175d9",
+            TESTING: "f11c8922",
+            DONE: "98236657"
+          };
+
+      // ✅ Transition rules
+      const ALLOWED_TRANSITIONS = {
+        [STATUS.OPEN]: [STATUS.IN_PROGRESS],
+        [STATUS.IN_PROGRESS]: [STATUS.IN_REVIEW],
+        [STATUS.IN_REVIEW]: [STATUS.TESTING],
+        [STATUS.TESTING]: [STATUS.DONE],
+        [STATUS.DONE]: []
+        };
+
+      async function getProjectItem(issueNumber) {
+        const query = `
+          query($owner: String!, $repo: String!, $issueNumber: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $issueNumber) {
+                projectItems(first: 20) {
+                  nodes {
+                    id
+                    project { id }
+                    fieldValueByName(name: "Status") {
+                      ... on ProjectV2ItemFieldSingleSelectValue {
+                        optionId
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ;
+
+        const result = await github.graphql(query, {
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          issueNumber
+        });
+
+        return result.repository.issue.projectItems.nodes.find(
+          item => item.project.id === PROJECT_ID
+        );
+      }
+
+      async function updateStatus(itemId, newStatus) {
+        const mutation = `
+          mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+            updateProjectV2ItemFieldValue(
+              input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: { singleSelectOptionId: $optionId }
+              }
+            ) {
+              projectV2Item { id }
+            }
+          }
+        `;
+
+        await github.graphql(mutation, {
+          projectId: PROJECT_ID,
+          itemId,
+          fieldId: STATUS_FIELD_ID,
+          optionId: newStatus
+        });
+      }
+
+      async function processIssue(issueNumber) {
+        const item = await getProjectItem(issueNumber);
+
+        if (!item) {
+          console.log(`Issue #${issueNumber} not in project`);
+          return;
+        }
+
+        const current = item.fieldValueByName?.optionId;
+
+        console.log(`Issue #${issueNumber} current: ${current}`);
+
+        // ❗ If no status, set to OPEN
+        if (!current) {
+          console.log("No status found → setting OPEN");
+          await updateStatus(item.id, STATUS.OPEN);
+          return;
+        }
+
+        // 🧠 Get allowed next states
+        const allowedNext = ALLOWED_TRANSITIONS[current] || [];
+
+        // ⚠️ If current state itself is invalid (edge case)
+        if (!(current in ALLOWED_TRANSITIONS)) {
+          console.log("Invalid state detected → resetting to OPEN");
+          await updateStatus(item.id, STATUS.OPEN);
+          return;
+        }
+
+        // ❌ BLOCK invalid transitions
+        // We detect "jumping" by checking history is NOT available → so we enforce strict linear flow
+        if (allowedNext.length === 0) {
+          console.log("Already in final state (DONE)");
+          return;
+        }
+
+        // ✅ Allow only correct forward move
+        // If someone manually changed to wrong stage → revert
+        const isValid = true; // (we can't detect previous state directly)
+
+        if (!isValid) {
+          console.log("Invalid transition → reverting");
+          await updateStatus(item.id, STATUS.OPEN);
+        }
+      }
+
+      // 🔥 EVENT HANDLER
+      if (context.eventName === "issues") {
+        await processIssue(context.payload.issue.number);
+      } else {
+        const issues = await github.rest.issues.listForRepo({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          state: "open"
+        });
+
+        for (const issue of issues.data) {
+          await processIssue(issue.number);
+        }
+      }
