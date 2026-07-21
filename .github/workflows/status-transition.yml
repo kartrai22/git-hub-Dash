@@ -2,7 +2,7 @@ name: Enforce Status Transition
 
 on:
   schedule:
-    - cron: "* * * * *"
+    - cron: "*/5 * * * *"
   issues:
     types:
       - opened
