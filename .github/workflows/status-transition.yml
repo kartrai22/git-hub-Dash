@@ -7,6 +7,11 @@ on:
       - edited
       - closed
   workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number for manual run (optional)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -23,7 +28,28 @@ jobs:
         with:
           github-token: ${{ secrets.PROJECT_TOKEN }}
           script: |
-            const issue = context.payload.issue;
+            let issue = context.payload.issue;
+
+            // If the workflow was manually dispatched, an `issue` may not
+            // be present in the event payload. Allow passing an
+            // `issue_number` via `workflow_dispatch` inputs as a fallback.
+            if (!issue) {
+              const inputs = (context.payload && context.payload.inputs) || {};
+              const inputNumber = inputs.issue_number || inputs.issueNumber || '';
+              if (inputNumber) {
+                issue = { number: parseInt(inputNumber, 10) };
+                console.log(`Using issue number from inputs: ${issue.number}`);
+              } else {
+                console.log('No issue in event payload and no issue_number input provided; exiting.');
+                return;
+              }
+            }
+            
+            // Skip if not triggered by issue event (e.g., workflow_dispatch)
+            if (!issue) {
+              console.log("Workflow not triggered by issue event. Skipping...");
+              return;
+            }
 
             // Configure these values
             const PROJECT_ID = "PVT_kwHOBxoExc4BeAXg";
