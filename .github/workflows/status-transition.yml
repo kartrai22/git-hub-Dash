@@ -24,11 +24,14 @@ jobs:
             const issue = context.payload.issue;
 
             // Configure these values
-            const PROJECT_ID = "YOUR_PROJECT_NODE_ID";
-            const STATUS_FIELD_ID = "YOUR_STATUS_FIELD_NODE_ID";
+            const PROJECT_ID = "PVT_kwHOBxoExc4BeAXg";
+            const STATUS_FIELD_ID = "PVTSSF_lAHOBxoExc4BeAXgzhYdvfk";
 
-            const OPEN_OPTION_ID = "YOUR_OPEN_OPTION_ID";
-            const IN_PROGRESS_OPTION_ID = "YOUR_IN_PROGRESS_OPTION_ID";
+            const OPEN_OPTION_ID = "f75ad846";
+            const IN_PROGRESS_OPTION_ID = "47fc9ee4";
+            const IN_REVIEW_OPTION_ID = "723175d9";
+            const TESTING_OPTION_ID = "f11c8922";
+            const DONE_OPTION_ID = "98236657";
 
             // Get the current project item for this issue
             const query = `
