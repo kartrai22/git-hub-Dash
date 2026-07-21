@@ -1,4 +1,5 @@
 name: Subtask
+description: Create a subtask for breaking down work items
 title: "[SUBTASK] "
 labels: ["Subtask"]
 body:

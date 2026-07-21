@@ -1,0 +1,116 @@
+name: Enforce Status Transition
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+
+permissions:
+  contents: read
+  issues: read
+  repository-projects: write
+
+jobs:
+  enforce-status:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate status transition
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+
+            // Configure these values
+            const PROJECT_ID = "YOUR_PROJECT_NODE_ID";
+            const STATUS_FIELD_ID = "YOUR_STATUS_FIELD_NODE_ID";
+
+            const OPEN_OPTION_ID = "YOUR_OPEN_OPTION_ID";
+            const IN_PROGRESS_OPTION_ID = "YOUR_IN_PROGRESS_OPTION_ID";
+
+            // Get the current project item for this issue
+            const query = `
+              query($owner: String!, $repo: String!, $issueNumber: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  issue(number: $issueNumber) {
+                    projectItems(first: 20) {
+                      nodes {
+                        id
+                        project {
+                          id
+                        }
+                        fieldValueByName(name: "Status") {
+                          ... on ProjectV2ItemFieldSingleSelectValue {
+                            optionId
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(query, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issueNumber: issue.number
+            });
+
+            const projectItem = result.repository.issue.projectItems.nodes.find(
+              item => item.project.id === PROJECT_ID
+            );
+
+            if (!projectItem) {
+              console.log("Issue is not in the target Project.");
+              return;
+            }
+
+            const currentStatus =
+              projectItem.fieldValueByName?.optionId;
+
+            console.log(`Current status: ${currentStatus}`);
+
+            // Only allow Open -> In progress.
+            // Any other status is reverted to Open.
+            if (currentStatus !== IN_PROGRESS_OPTION_ID) {
+              console.log("Invalid status transition. Reverting to Open.");
+
+              const mutation = `
+                mutation(
+                  $projectId: ID!,
+                  $itemId: ID!,
+                  $fieldId: ID!,
+                  $optionId: String!
+                ) {
+                  updateProjectV2ItemFieldValue(
+                    input: {
+                      projectId: $projectId
+                      itemId: $itemId
+                      fieldId: $fieldId
+                      value: {
+                        singleSelectOptionId: $optionId
+                      }
+                    }
+                  ) {
+                    projectV2Item {
+                      id
+                    }
+                  }
+                }
+              `;
+
+              await github.graphql(mutation, {
+                projectId: PROJECT_ID,
+                itemId: projectItem.id,
+                fieldId: STATUS_FIELD_ID,
+                optionId: OPEN_OPTION_ID
+              });
+
+              console.log("Status reverted to Open.");
+            } else {
+              console.log("Status is In progress.");
+            }
