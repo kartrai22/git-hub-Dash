@@ -1,7 +1,6 @@
 name: Enable Status Transition
 
 on:
-  workflow_dispatch:
   schedule:
     - cron: "*/5 * * * *"
   issues:
@@ -23,9 +22,7 @@ jobs:
           github-token: ${{ secrets.PROJECT_TOKEN }}  
           script: |
             const issue = context.payload.issue;
-             if (!issue || !issue.number) {
-              console.log("No issue context. Skipping execution.");
-            return;
+
             }
             // Configure these values
             const PROJECT_ID = "PVT_kwHOBxoExc4BeAXg";
